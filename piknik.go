@@ -111,7 +111,7 @@ func main() {
 	maxClients := flag.Uint64("maxclients", 2, "maximum number of simultaneous client connections")
 	maxLenMb := flag.Uint64("maxlen", 0, "maximum content length to accept in Mb (0=unlimited)")
 	timeout := flag.Uint("timeout", 10, "connection timeout (seconds)")
-	dataTimeout := flag.Uint("datatimeout", 3600, "data transmission timeout (seconds)")
+	dataTimeout := flag.Uint("datatimeout", 600, "data transmission timeout (seconds)")
 	isVersion := flag.Bool("version", false, "display package version")
 
 	defaultConfigFile := "~/.piknik.toml"
