@@ -25,7 +25,7 @@ const (
 	// DefaultConnect - Default value for the Connect parameter
 	DefaultConnect = "127.0.0.1:8075"
 	// DefaultTTL - Time after the clipboard is considered obsolete, in seconds
-	DefaultTTL = 7 * 24 * time.Hour
+	DefaultTTL = time.Hour
 )
 
 type tomlConfig struct {
