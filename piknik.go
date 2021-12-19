@@ -108,7 +108,7 @@ func main() {
 	isServer := flag.Bool("server", false, "start a server")
 	isGenKeys := flag.Bool("genkeys", false, "generate keys")
 	isDeterministic := flag.Bool("password", false, "derive the keys from a password (default=random keys)")
-	maxClients := flag.Uint64("maxclients", 10, "maximum number of simultaneous client connections")
+	maxClients := flag.Uint64("maxclients", 2, "maximum number of simultaneous client connections")
 	maxLenMb := flag.Uint64("maxlen", 0, "maximum content length to accept in Mb (0=unlimited)")
 	timeout := flag.Uint("timeout", 10, "connection timeout (seconds)")
 	dataTimeout := flag.Uint("datatimeout", 3600, "data transmission timeout (seconds)")
