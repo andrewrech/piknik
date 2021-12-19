@@ -245,7 +245,6 @@ func maybeAcceptClient(conf Conf, conn net.Conn) {
 
 // RunServer - run a server
 func RunServer(conf Conf) {
-	go handleSignals()
 	listen, err := net.Listen("tcp", conf.Listen)
 	if err != nil {
 		log.Fatal(err)
