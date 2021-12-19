@@ -11,7 +11,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/chacha20"
@@ -85,9 +84,6 @@ func (client *Client) copyOperation(h1 []byte) {
 	wh3 := auth3store(conf, h2)
 	if subtle.ConstantTimeCompare(wh3, h3) != 1 {
 		log.Fatal("Incorrect authentication code")
-	}
-	if IsTerminal(int(syscall.Stderr)) {
-		os.Stderr.WriteString("Sent\n")
 	}
 }
 
