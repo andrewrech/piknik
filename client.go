@@ -18,7 +18,7 @@ import (
 )
 
 // DefaultClientVersion - Default client version
-const DefaultClientVersion = byte(6)
+const DefaultClientVersion = byte(1)
 
 // Client - Client data
 type Client struct {

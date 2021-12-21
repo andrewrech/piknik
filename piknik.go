@@ -18,9 +18,9 @@ import (
 
 const (
 	// Version - Piknik version
-	Version = "0.10.1"
+	Version = "0.0.1"
 	// DomainStr - BLAKE2 domain (personalization)
-	DomainStr = "PK"
+	DomainStr = "GS"
 	// DefaultListen - Default value for the Listen parameter
 	DefaultListen = "0.0.0.0:8075"
 	// DefaultConnect - Default value for the Connect parameter
