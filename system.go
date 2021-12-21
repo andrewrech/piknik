@@ -1,0 +1,61 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"time"
+
+	"golang.design/x/clipboard"
+)
+
+func systemClipboardChan() (out chan string) {
+	out = make(chan string, 1e6)
+
+	ch := make(<-chan []byte, 1e6)
+
+	go func() {
+		ch = clipboard.Watch(context.TODO(), clipboard.FmtText)
+	}()
+
+	go func() {
+		for data := range ch {
+			out <- string(data)
+		}
+	}()
+	return out
+}
+
+func piknikChan(conf Conf) (out chan string) {
+
+	out = make(chan string, 1e6)
+	go func() {
+		contentOld := string(RunClient(conf, nil, false, false))
+		for {
+			time.Sleep(100 * time.Millisecond)
+			contentNew := string(RunClient(conf, nil, false, false))
+
+			// send if update
+			if contentOld != contentNew {
+				contentOld = contentNew
+				out <- string(contentNew)
+			}
+		}
+	}()
+
+	return out
+}
+
+// Sync piknik and system clipboards on Darwin efficiently.
+func SyncClipboards(conf Conf, fromSystem chan string, fromPiknik chan string) {
+
+	for {
+		select {
+		case out := <-fromSystem:
+			input := bytes.NewReader([]byte(out))
+			_ = RunClient(conf, input, true, false)
+
+		case out := <-fromPiknik:
+			clipboard.Write(clipboard.FmtText, []byte(out))
+		}
+	}
+}

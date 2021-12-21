@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -210,9 +211,26 @@ func main() {
 		conf.TrustedIPCount = 1
 	}
 	confCheck(conf, *isServer)
+
+	if *isServer && *isWatch {
+		log.Fatal("Cannot run server and watch together")
+	}
+
 	if *isServer {
 		RunServer(conf)
-	} else {
-		RunClient(conf, *isCopy, *isMove)
+		os.Exit(0)
 	}
+
+	if *isWatch {
+		fromSystem := systemClipboardChan()
+		fromPiknik := piknikChan(conf)
+		SyncClipboards(conf, fromSystem, fromPiknik)
+	}
+
+	content := RunClient(conf, nil, *isCopy, *isMove)
+
+	if content != nil {
+		binary.Write(os.Stdout, binary.LittleEndian, content)
+	}
+
 }
