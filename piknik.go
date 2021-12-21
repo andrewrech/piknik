@@ -47,6 +47,7 @@ type Conf struct {
 	Connect        string
 	Listen         string
 	MaxClients     uint64
+	MaxAttempts    uint64
 	MaxLen         uint64
 	EncryptSk      []byte
 	EncryptSkID    []byte
@@ -107,9 +108,10 @@ func main() {
 	_ = flag.Bool("paste", false, "retrieve the content (paste) - this is the default action")
 	isMove := flag.Bool("move", false, "retrieve and delete the clipboard content")
 	isServer := flag.Bool("server", false, "start a server")
+	isWatch := flag.Bool("watch", false, "sync piknik, Darwin system clipboard")
 	isGenKeys := flag.Bool("genkeys", false, "generate keys")
-	maxClients := flag.Uint64("maxclients", 2, "maximum number of simultaneous client connections")
-	maxAttemps := flag.Uint64("maxattemps", 0, "maximum number of connection attemps (0=unlimited")
+	maxClients := flag.Uint64("maxclients", 10, "maximum number of simultaneous client connections")
+	maxAttempts := flag.Uint64("maxattemps", 0, "maximum number of connection attemps (0=unlimited")
 	maxLenMb := flag.Uint64("maxlen", 0, "maximum content length to accept in Mb (0=unlimited)")
 	timeout := flag.Uint("timeout", 1, "connection timeout (seconds)")
 	dataTimeout := flag.Uint("datatimeout", 1200, "data transmission timeout (seconds)")
@@ -203,6 +205,9 @@ func main() {
 		conf.SignSk = signSk
 	}
 	conf.MaxClients = *maxClients
+
+	conf.MaxAttempts = *maxAttempts
+
 	conf.MaxLen = *maxLenMb * 1024 * 1024
 	conf.Timeout = time.Duration(*timeout) * time.Second
 	conf.DataTimeout = time.Duration(*dataTimeout) * time.Second
