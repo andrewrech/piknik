@@ -44,6 +44,9 @@ func piknikChan(conf Conf) (out chan string) {
 // Sync piknik and system clipboards on Darwin efficiently.
 func SyncClipboards(conf Conf, fromSystem chan string, fromPiknik chan string) {
 
+	clipboard.Write(clipboard.FmtText, []byte(""))
+	_ = RunClient(conf, bytes.NewReader([]byte("")), true, false)
+
 	for {
 		select {
 		case out := <-fromSystem:
