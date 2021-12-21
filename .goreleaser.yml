@@ -1,0 +1,55 @@
+before:
+  hooks:
+    - go mod vendor
+    - go mod tidy
+    - go install .
+    - echo '```' > docs.md; piknik -h >> docs.md 2>&1; echo '```' >> docs.md; gomarkdoc -u . >> docs.md
+release:
+  github:
+    owner: andrewrech
+    name: piknik
+builds:
+  -
+    main: piknik.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - freebsd
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm
+      - arm64
+universal_binaries:
+  - replace: true
+dockers:
+  -
+    image_templates:
+      - "andrewrech/s3link:{{ .Tag }}"
+      - "andrewrech/s3link:v{{ .Major }}"
+      - "andrewrech/s3link:v{{ .Major }}.{{ .Minor }}"
+      - "andrewrech/s3link:latest"
+archives:
+  -
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      amd64: x86_64
+    files:
+      - "*md"
+signs:
+  -
+    artifacts: all
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
