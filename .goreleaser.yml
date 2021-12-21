@@ -3,7 +3,6 @@ before:
     - go mod vendor
     - go mod tidy
     - go install .
-    - echo '```' > docs.md; piknik -h >> docs.md 2>&1; echo '```' >> docs.md; gomarkdoc -u . >> docs.md
 release:
   github:
     owner: andrewrech
@@ -15,7 +14,6 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
-      - freebsd
       - windows
       - darwin
     goarch:
