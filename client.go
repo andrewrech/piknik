@@ -87,7 +87,7 @@ func (client *Client) copyOperation(h1 []byte) {
 	}
 }
 
-func (client *Client) pasteOperation(h1 []byte, isMove bool) {
+func (client *Client) pasteOperation(h1 []byte, isMove bool) (content []byte) {
 	conf, reader, writer := client.conf, client.reader, client.writer
 	opcode := byte('G')
 	if isMove {
