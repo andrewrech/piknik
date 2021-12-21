@@ -2,14 +2,12 @@ before:
   hooks:
     - go mod vendor
     - go mod tidy
-    - go install .
 release:
   github:
     owner: andrewrech
     name: piknik
 builds:
   -
-    main: piknik.go
     env:
       - CGO_ENABLED=0
     goos:
@@ -22,13 +20,6 @@ builds:
       - arm64
 universal_binaries:
   - replace: true
-dockers:
-  -
-    image_templates:
-      - "andrewrech/s3link:{{ .Tag }}"
-      - "andrewrech/s3link:v{{ .Major }}"
-      - "andrewrech/s3link:v{{ .Major }}.{{ .Minor }}"
-      - "andrewrech/s3link:latest"
 archives:
   -
     replacements:
