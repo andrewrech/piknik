@@ -9,19 +9,15 @@ import (
 )
 
 func systemClipboardChan() (out chan string) {
-	out = make(chan string, 1e6)
-
-	ch := make(<-chan []byte, 1e6)
 
 	go func() {
-		ch = clipboard.Watch(context.TODO(), clipboard.FmtText)
-	}()
-
-	go func() {
+		out = make(chan string, 1e6)
+		ch := clipboard.Watch(context.TODO(), clipboard.FmtText)
 		for data := range ch {
 			out <- string(data)
 		}
 	}()
+
 	return out
 }
 
