@@ -29,7 +29,7 @@ type Client struct {
 	version byte
 }
 
-func (client *Client) copyOperation(h1 []byte) {
+func (client *Client) copyOperation(input io.Reader, h1 []byte) {
 	ts := make([]byte, 8)
 	binary.LittleEndian.PutUint64(ts, uint64(time.Now().Unix()))
 
@@ -46,7 +46,7 @@ func (client *Client) copyOperation(h1 []byte) {
 	}
 	contentWithEncryptSkIDAndNonceBuf.Write(nonce)
 
-	_, err := contentWithEncryptSkIDAndNonceBuf.ReadFrom(os.Stdin)
+	_, err := contentWithEncryptSkIDAndNonceBuf.ReadFrom(input)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,13 +150,13 @@ func (client *Client) pasteOperation(h1 []byte, isMove bool) (content []byte) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	content := ciphertextWithEncryptSkIDAndNonce[32:]
+	content = ciphertextWithEncryptSkIDAndNonce[32:]
 	cipher.XORKeyStream(content, content)
-	binary.Write(os.Stdout, binary.LittleEndian, content)
+	return content
 }
 
 // RunClient - Process a client query
-func RunClient(conf Conf, isCopy bool, isMove bool) {
+func RunClient(conf Conf, input io.Reader, isCopy bool, isMove bool) (content []byte) {
 	conn, err := net.DialTimeout("tcp", conf.Connect, conf.Timeout)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Unable to connect to %v - Is a Piknik server running on that host?",
@@ -203,8 +203,10 @@ func RunClient(conf Conf, isCopy bool, isMove bool) {
 		log.Fatal("Incorrect authentication code")
 	}
 	if isCopy {
-		client.copyOperation(h1)
+		client.copyOperation(os.Stdin, h1)
 	} else {
-		client.pasteOperation(h1, isMove)
+		content = client.pasteOperation(h1, isMove)
 	}
+
+	return (content)
 }
