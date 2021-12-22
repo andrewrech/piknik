@@ -18,13 +18,13 @@ import (
 
 const (
 	// Version - Piknik version
-	Version = "0.0.1"
+	Version = "0.0.2"
 	// DomainStr - BLAKE2 domain (personalization)
-	DomainStr = "GS"
+	DomainStr = "piknik"
 	// DefaultListen - Default value for the Listen parameter
-	DefaultListen = "0.0.0.0:8075"
+	DefaultListen = "0.0.0.0:24444"
 	// DefaultConnect - Default value for the Connect parameter
-	DefaultConnect = "127.0.0.1:8075"
+	DefaultConnect = "127.0.0.1:24444"
 	// DefaultTTL - Time after the clipboard is considered obsolete, in seconds
 	DefaultTTL = time.Hour
 )
