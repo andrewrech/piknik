@@ -10,7 +10,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	"golang.org/x/crypto/chacha20"
@@ -157,6 +156,7 @@ func (client *Client) pasteOperation(h1 []byte, isMove bool) (content []byte) {
 
 // RunClient - Process a client query
 func RunClient(conf Conf, input io.Reader, isCopy bool, isMove bool) (content []byte) {
+
 	conn, err := net.DialTimeout("tcp", conf.Connect, conf.Timeout)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Unable to connect to %v - Is a Piknik server running on that host?",
@@ -203,7 +203,7 @@ func RunClient(conf Conf, input io.Reader, isCopy bool, isMove bool) (content []
 		log.Fatal("Incorrect authentication code")
 	}
 	if isCopy {
-		client.copyOperation(os.Stdin, h1)
+		client.copyOperation(input, h1)
 	} else {
 		content = client.pasteOperation(h1, isMove)
 	}

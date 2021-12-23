@@ -18,7 +18,7 @@ import (
 
 const (
 	// Version - Piknik version
-	Version = "0.0.2"
+	Version = "0.0.4"
 	// DomainStr - BLAKE2 domain (personalization)
 	DomainStr = "piknik"
 	// DefaultListen - Default value for the Listen parameter
@@ -227,12 +227,10 @@ func main() {
 	}
 
 	if *isWatch {
-		fromSystem := systemClipboardChan()
-		fromPiknik := piknikChan(conf)
-		SyncClipboards(conf, fromSystem, fromPiknik)
+		SyncClipboards(conf)
 	}
 
-	content := RunClient(conf, nil, *isCopy, *isMove)
+	content := RunClient(conf, os.Stdin, *isCopy, *isMove)
 
 	if content != nil {
 		binary.Write(os.Stdout, binary.LittleEndian, content)
