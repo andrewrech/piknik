@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -17,15 +18,15 @@ import (
 
 const (
 	// Version - Piknik version
-	Version = "0.10.1"
+	Version = "0.0.4"
 	// DomainStr - BLAKE2 domain (personalization)
-	DomainStr = "PK"
+	DomainStr = "piknik"
 	// DefaultListen - Default value for the Listen parameter
-	DefaultListen = "0.0.0.0:8075"
+	DefaultListen = "0.0.0.0:24444"
 	// DefaultConnect - Default value for the Connect parameter
-	DefaultConnect = "127.0.0.1:8075"
+	DefaultConnect = "127.0.0.1:24444"
 	// DefaultTTL - Time after the clipboard is considered obsolete, in seconds
-	DefaultTTL = 7 * 24 * time.Hour
+	DefaultTTL = time.Hour
 )
 
 type tomlConfig struct {
@@ -46,6 +47,7 @@ type Conf struct {
 	Connect        string
 	Listen         string
 	MaxClients     uint64
+	MaxAttempts    uint64
 	MaxLen         uint64
 	EncryptSk      []byte
 	EncryptSkID    []byte
@@ -106,12 +108,13 @@ func main() {
 	_ = flag.Bool("paste", false, "retrieve the content (paste) - this is the default action")
 	isMove := flag.Bool("move", false, "retrieve and delete the clipboard content")
 	isServer := flag.Bool("server", false, "start a server")
+	isWatch := flag.Bool("watch", false, "sync piknik, Darwin system clipboard")
 	isGenKeys := flag.Bool("genkeys", false, "generate keys")
-	isDeterministic := flag.Bool("password", false, "derive the keys from a password (default=random keys)")
 	maxClients := flag.Uint64("maxclients", 10, "maximum number of simultaneous client connections")
+	maxAttempts := flag.Uint64("maxattemps", 0, "maximum number of connection attemps (0=unlimited")
 	maxLenMb := flag.Uint64("maxlen", 0, "maximum content length to accept in Mb (0=unlimited)")
-	timeout := flag.Uint("timeout", 10, "connection timeout (seconds)")
-	dataTimeout := flag.Uint("datatimeout", 3600, "data transmission timeout (seconds)")
+	timeout := flag.Uint("timeout", 1, "connection timeout (seconds)")
+	dataTimeout := flag.Uint("datatimeout", 1200, "data transmission timeout (seconds)")
 	isVersion := flag.Bool("version", false, "display package version")
 
 	defaultConfigFile := "~/.piknik.toml"
@@ -144,11 +147,7 @@ func main() {
 		conf.Connect = tomlConf.Connect
 	}
 	if *isGenKeys {
-		leKey := ""
-		if *isDeterministic {
-			leKey = getPassword("Password> ")
-		}
-		genKeys(conf, *configFile, leKey)
+		genKeys(conf, *configFile)
 		return
 	}
 	pskHex := tomlConf.Psk
@@ -206,6 +205,9 @@ func main() {
 		conf.SignSk = signSk
 	}
 	conf.MaxClients = *maxClients
+
+	conf.MaxAttempts = *maxAttempts
+
 	conf.MaxLen = *maxLenMb * 1024 * 1024
 	conf.Timeout = time.Duration(*timeout) * time.Second
 	conf.DataTimeout = time.Duration(*dataTimeout) * time.Second
@@ -214,9 +216,29 @@ func main() {
 		conf.TrustedIPCount = 1
 	}
 	confCheck(conf, *isServer)
+
+	if *isServer && *isWatch {
+		log.Fatal("Cannot run server and watch together")
+	}
+
 	if *isServer {
 		RunServer(conf)
-	} else {
-		RunClient(conf, *isCopy, *isMove)
+		os.Exit(0)
 	}
+
+	if *isWatch {
+		SyncClipboards(conf)
+	}
+
+	content, err := RunClient(conf, os.Stdin, *isCopy, *isMove)
+
+	if content != nil {
+		binary.Write(os.Stdout, binary.LittleEndian, content)
+	}
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+
 }

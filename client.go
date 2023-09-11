@@ -6,12 +6,11 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"os"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/chacha20"
@@ -19,7 +18,7 @@ import (
 )
 
 // DefaultClientVersion - Default client version
-const DefaultClientVersion = byte(6)
+const DefaultClientVersion = byte(1)
 
 // Client - Client data
 type Client struct {
@@ -30,7 +29,7 @@ type Client struct {
 	version byte
 }
 
-func (client *Client) copyOperation(h1 []byte) {
+func (client *Client) copyOperation(input io.Reader, h1 []byte) (err error) {
 	ts := make([]byte, 8)
 	binary.LittleEndian.PutUint64(ts, uint64(time.Now().Unix()))
 
@@ -43,19 +42,19 @@ func (client *Client) copyOperation(h1 []byte) {
 
 	nonce := make([]byte, 24)
 	if _, err := rand.Read(nonce); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	contentWithEncryptSkIDAndNonceBuf.Write(nonce)
 
-	_, err := contentWithEncryptSkIDAndNonceBuf.ReadFrom(os.Stdin)
+	_, err = contentWithEncryptSkIDAndNonceBuf.ReadFrom(input)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	contentWithEncryptSkIDAndNonce := contentWithEncryptSkIDAndNonceBuf.Bytes()
 
 	cipher, err := chacha20.NewUnauthenticatedCipher(conf.EncryptSk, nonce)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	opcode := byte('S')
 	cipher.XORKeyStream(contentWithEncryptSkIDAndNonce[8+24:], contentWithEncryptSkIDAndNonce[8+24:])
@@ -71,27 +70,26 @@ func (client *Client) copyOperation(h1 []byte) {
 	writer.Write(signature)
 	writer.Write(contentWithEncryptSkIDAndNonce)
 	if err = writer.Flush(); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	rbuf := make([]byte, 32)
 	if _, err = io.ReadFull(reader, rbuf); err != nil {
 		if err == io.ErrUnexpectedEOF {
-			log.Fatal("The server may be running an incompatible version")
+			return errors.New("The server may be running an incompatible version")
 		} else {
-			log.Fatal(err)
+			return err
 		}
 	}
 	h3 := rbuf
 	wh3 := auth3store(conf, h2)
 	if subtle.ConstantTimeCompare(wh3, h3) != 1 {
-		log.Fatal("Incorrect authentication code")
+		return errors.New("Incorrect authentication code")
 	}
-	if IsTerminal(int(syscall.Stderr)) {
-		os.Stderr.WriteString("Sent\n")
-	}
+
+	return nil
 }
 
-func (client *Client) pasteOperation(h1 []byte, isMove bool) {
+func (client *Client) pasteOperation(h1 []byte, isMove bool) (content []byte, err error) {
 	conf, reader, writer := client.conf, client.reader, client.writer
 	opcode := byte('G')
 	if isMove {
@@ -101,18 +99,18 @@ func (client *Client) pasteOperation(h1 []byte, isMove bool) {
 	writer.WriteByte(opcode)
 	writer.Write(h2)
 	if err := writer.Flush(); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	rbuf := make([]byte, 112)
 	if nbread, err := io.ReadFull(reader, rbuf); err != nil {
 		if err == io.ErrUnexpectedEOF {
 			if nbread < 80 {
-				log.Fatal("The clipboard might be empty")
+				return nil, errors.New("The clipboard might be empty")
 			} else {
-				log.Fatal("The server may be running an incompatible version")
+				return nil, errors.New("The server may be running an incompatible version")
 			}
 		} else {
-			log.Fatal(err)
+			return nil, err
 		}
 	}
 	h3 := rbuf[0:32]
@@ -121,50 +119,53 @@ func (client *Client) pasteOperation(h1 []byte, isMove bool) {
 	signature := rbuf[48:112]
 	wh3 := auth3get(conf, client.version, h2, ts, signature)
 	if subtle.ConstantTimeCompare(wh3, h3) != 1 {
-		log.Fatal("Incorrect authentication code")
+		return nil, errors.New("Incorrect authentication code")
 	}
 	elapsed := time.Since(time.Unix(int64(binary.LittleEndian.Uint64(ts)), 0))
 	if elapsed >= conf.TTL {
-		log.Fatal("Clipboard content is too old")
+		return nil, errors.New("Clipboard content is too old")
 	}
 	if ciphertextWithEncryptSkIDAndNonceLen < 8+24 {
-		log.Fatal("Clipboard content is too short")
+		return nil, errors.New("Clipboard content is too short")
 	}
 	ciphertextWithEncryptSkIDAndNonce := make([]byte, ciphertextWithEncryptSkIDAndNonceLen)
 	client.conn.SetDeadline(time.Now().Add(conf.DataTimeout))
 	if _, err := io.ReadFull(reader, ciphertextWithEncryptSkIDAndNonce); err != nil {
 		if err == io.ErrUnexpectedEOF {
-			log.Fatal("The server may be running an incompatible version")
+			return nil, errors.New("The server may be running an incompatible version")
 		} else {
-			log.Fatal(err)
+			return nil, err
 		}
 	}
 	encryptSkID := ciphertextWithEncryptSkIDAndNonce[0:8]
 	if !bytes.Equal(conf.EncryptSkID, encryptSkID) {
 		wEncryptSkIDStr := binary.LittleEndian.Uint64(conf.EncryptSkID)
 		encryptSkIDStr := binary.LittleEndian.Uint64(encryptSkID)
-		log.Fatal(fmt.Sprintf("Configured key ID is %v but content was encrypted using key ID %v",
-			wEncryptSkIDStr, encryptSkIDStr))
+		msg := fmt.Sprintf("Configured key ID is %v but content was encrypted using key ID %v",
+			wEncryptSkIDStr, encryptSkIDStr)
+		return nil, errors.New(msg)
 	}
 	if !ed25519.Verify(conf.SignPk, ciphertextWithEncryptSkIDAndNonce, signature) {
-		log.Fatal("Signature doesn't verify")
+		return nil, errors.New("Signature doesn't verify")
 	}
 	nonce := ciphertextWithEncryptSkIDAndNonce[8:32]
 	cipher, err := chacha20.NewUnauthenticatedCipher(conf.EncryptSk, nonce)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	content := ciphertextWithEncryptSkIDAndNonce[32:]
+	content = ciphertextWithEncryptSkIDAndNonce[32:]
 	cipher.XORKeyStream(content, content)
-	binary.Write(os.Stdout, binary.LittleEndian, content)
+	return content, nil
 }
 
 // RunClient - Process a client query
-func RunClient(conf Conf, isCopy bool, isMove bool) {
+func RunClient(conf Conf, input io.Reader, isCopy bool, isMove bool) (content []byte, err error) {
+
 	conn, err := net.DialTimeout("tcp", conf.Connect, conf.Timeout)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Unable to connect to %v - Is a Piknik server running on that host?",
+		log.Print(fmt.Sprintf("Unable to connect to %v - Is a Piknik server running on that host?",
 			conf.Connect))
+		return nil, err
 	}
 	defer conn.Close()
 
@@ -179,36 +180,38 @@ func RunClient(conf Conf, isCopy bool, isMove bool) {
 	}
 	r := make([]byte, 32)
 	if _, err = rand.Read(r); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	h0 := auth0(conf, client.version, r)
 	writer.Write([]byte{client.version})
 	writer.Write(r)
 	writer.Write(h0)
 	if err := writer.Flush(); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	rbuf := make([]byte, 65)
 	if nbread, err := io.ReadFull(reader, rbuf); err != nil {
 		if nbread < 2 {
-			log.Fatal("The server rejected the connection - Check that it is running the same Piknik version or retry later")
+			return nil, errors.New("The server rejected the connection - Check that it is running the same Piknik version or retry later")
 		} else {
-			log.Fatal("The server doesn't support this protocol")
+			return nil, errors.New("The server doesn't support this protocol")
 		}
 	}
 	if serverVersion := rbuf[0]; serverVersion != client.version {
-		log.Fatal(fmt.Sprintf("Incompatible server version (client version: %v - server version: %v)",
+		return nil, errors.New(fmt.Sprintf("Incompatible server version (client version: %v - server version: %v)",
 			client.version, serverVersion))
 	}
 	r2 := rbuf[1:33]
 	h1 := rbuf[33:65]
 	wh1 := auth1(conf, client.version, h0, r2)
 	if subtle.ConstantTimeCompare(wh1, h1) != 1 {
-		log.Fatal("Incorrect authentication code")
+		return nil, errors.New("Incorrect authentication code")
 	}
 	if isCopy {
-		client.copyOperation(h1)
+		err = client.copyOperation(input, h1)
 	} else {
-		client.pasteOperation(h1, isMove)
+		content, err = client.pasteOperation(h1, isMove)
 	}
+
+	return content, nil
 }

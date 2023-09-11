@@ -150,10 +150,6 @@ func handleClientConnection(conf Conf, conn net.Conn) {
 		return
 	}
 	cnx.clientVersion = rbuf[0]
-	if cnx.clientVersion != 6 {
-		log.Print("Unsupported client version - Please run the same version on the server and on the client")
-		return
-	}
 	r := rbuf[1:33]
 	h0 := rbuf[33:65]
 	wh0 := auth0(conf, cnx.clientVersion, r)
@@ -245,7 +241,6 @@ func maybeAcceptClient(conf Conf, conn net.Conn) {
 
 // RunServer - run a server
 func RunServer(conf Conf) {
-	go handleSignals()
 	listen, err := net.Listen("tcp", conf.Listen)
 	if err != nil {
 		log.Fatal(err)
